@@ -1,0 +1,496 @@
+\documentclass{article}
+
+\usepackage{graphicx}
+\usepackage[left=2.5cm, right=2.5cm, top=2cm, bottom=2cm]{geometry}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{changepage}
+\usepackage{svg}
+\usepackage{float} % 提供更灵活的图片位置控制
+\usepackage{booktabs}
+\usepackage{minted}
+\pagestyle{fancy}
+\fancyhf{} % 清空页眉和页脚
+\fancyfoot[C]{\thepage} % 只在页脚中居中显示页码
+\renewcommand{\headrulewidth}{0pt} % 去掉页眉的横线
+\usetikzlibrary{trees, shapes.geometric, arrows, positioning}
+\usepackage{lmodern}
+\usepackage[UTF8]{ctex}
+\usepackage{xeCJK}
+    \setCJKmainfont[AutoFakeBold=3]{TW-Sung}
+    \XeTeXlinebreaklocale "zh"
+    \XeTeXlinebreakskip = 0pt plus 1pt
+\usepackage{multirow}
+\ctexset{
+    figurename = {Figure},
+    tablename = {Table}
+}
+\definecolor{bg}{rgb}{0.95,0.95,0.92} % 定義一個自定義顏色
+\definecolor{lightgray}{gray}{0.9} % 設定一個淺灰色
+
+\titleformat{\section}[hang]{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}[hang]{\normalfont\bfseries}{\thesubsection}{2em}{}
+\titleformat{\subsubsection}[hang]{\normalfont\bfseries}{\thesubsubsection}{5em}{}
+
+\titlespacing*{\subsection}{2em}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+\titlespacing*{\subsubsection}{3em}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+% 定義 SQL 的語法高亮
+\lstdefinelanguage{SQL}{
+    keywords={SELECT, FROM, WHERE, INSERT, UPDATE, DELETE},
+    keywordstyle=\color{blue},
+    commentstyle=\color{brown},
+    stringstyle=\color{red}
+}
+
+% 定義 Python 的語法高亮
+\lstdefinelanguage{Python}{
+    keywords={def, return, if, else, import, print},
+    keywordstyle=\color{green},
+    commentstyle=\color{gray},
+    stringstyle=\color{orange}
+}
+
+% 全局設置
+\lstset{
+    language=SQL,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{brown},
+    stringstyle=\color{red},
+    showstringspaces=false,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{white},
+    frame=single,
+    rulecolor=\color{black},
+    captionpos=b,
+    inputencoding=utf8,
+    extendedchars=true
+}
+% 調整背景顏色的邊距
+\setlength{\fboxsep}{0pt}  % 調整框框的邊距，使背景顏色的寬度與代碼完全匹配
+\renewcommand{\abstractname}{\bf 摘要}
+\renewcommand{\tablename}{表}
+\renewcommand{\figurename}{圖}
+\renewcommand{\refname}{\bf 參考文獻}
+
+
+
+\title{Database Management\\Homework 5}
+\author{B11705044 \\ Yen-Hung, Chiang}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section*{1}
+下面的 Python 程式碼會先連接資料庫，如果連接失敗會丟出 Failed to connect to the database 的訊息。接著進到第二個 try 區段，先去把 \texttt{account\_id} = 1 的人扣掉 100 元，然後檢查他被扣款後的餘額是否大於 0，如果餘額小於 0 則 rollback，並且拋出 Insufficient funds 這段訊息；如果餘額足夠則把 \texttt{account\_id} = 2 的人餘額加上 100，接著 commit 這段 transactions。
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{Python}
+import psycopg2
+
+db_params = {
+    "dbname": "******",
+    "user": "******",
+    "password": "******",
+    "host": "******",
+    "port": "****"
+}
+
+try:
+    conn = psycopg2.connect(**db_params)
+    conn.autocommit = False 
+    cur = conn.cursor()
+except Exception as e:
+    print(f"Failed to connect to the database: {e}")
+    exit(1)
+
+try:
+    sender_account_id = 1
+    receiver_account_id = 2
+    transfer_amount = 100
+
+    cur.execute("UPDATE accounts SET balance = balance - %s WHERE account_id = %s", 
+                (transfer_amount, sender_account_id))
+
+    cur.execute("SELECT balance FROM accounts WHERE account_id = %s", (sender_account_id,))
+    sender_balance = cur.fetchone()[0]
+
+    if sender_balance < 0:
+        conn.rollback() 
+        raise Exception("Insufficient funds")
+
+    cur.execute("UPDATE accounts SET balance = balance + %s WHERE account_id = %s", 
+                (transfer_amount, receiver_account_id))
+
+    conn.commit()
+
+except Exception as e:
+    conn.rollback()
+    print(f"Transaction failed: {e}")
+
+finally:
+    cur.close()
+    conn.close()
+\end{minted}
+
+
+\section*{2}
+底下分別是兩個 trasactions，他們分別會對資料表的同一筆資料做交易（圖 \ref{figure:1}），Trasaction 1 會去把資料表 id = 1 的 value 更新為 200（圖 \ref{figure:2}），而 Trasaction 2 則是在 Trasaction 1 還沒 commit 之前去查詢同一筆資料圖 （\ref{figure:3}），接著讓 Trasaction 1 commit 之後 Trasaction 2 再去查一次資料圖 （\ref{figure:4}）。根據實際執行的結果我們可以看到 PostgreSQL 的確會防止 dirty read 的情況產生。
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+-- Transaction 1
+BEGIN;
+UPDATE test_table SET value = 200 WHERE id = 1;
+-- 停留在這等待 Transaction 2 的操作
+COMMIT;
+\end{minted}
+
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+-- Transaction 2
+BEGIN;
+SELECT * FROM test_table WHERE id = 1; -- 讀取 Transaction 1 正在修改的資料
+\end{minted}
+\begin{figure}[H]  % 使用 [H] 確保圖片固定在你放置的地方
+    \centering
+    \begin{minipage}{0.45\textwidth}  % 第一張圖片，占用 45% 的頁寬
+        \centering
+        \includegraphics[width=\linewidth]{1.png} % 替換為你的圖片文件名
+        \caption{原始資料表}
+        \label{figure:1}
+    \end{minipage}
+    \hfill % 加一個橫向間隙，確保圖片之間有空隙
+    \begin{minipage}{0.45\textwidth}  % 第二張圖片，占用 45% 的頁寬
+        \centering
+        \includegraphics[width=\linewidth]{2.png} % 替換為你的圖片文件名
+        \caption{Transaction 1 執行到一半}
+        \label{figure:2}
+    \end{minipage}
+\end{figure}
+\begin{figure}[H]  % 使用 [H] 確保圖片固定在你放置的地方
+    \centering
+    \begin{minipage}{0.45\textwidth}  % 第一張圖片，占用 45% 的頁寬
+        \centering
+        \includegraphics[width=\linewidth]{3.png} % 替換為你的圖片文件名
+        \caption{Transaction 2 嘗試查詢}
+        \label{figure:3}
+    \end{minipage}
+    \hfill % 加一個橫向間隙，確保圖片之間有空隙
+    \begin{minipage}{0.45\textwidth}  % 第二張圖片，占用 45% 的頁寬
+        \centering
+        \includegraphics[width=\linewidth]{4.png} % 替換為你的圖片文件名
+        \caption{Transaction 2 在 Transaction 1 commit 之後查詢}
+        \label{figure:4}
+    \end{minipage}
+\end{figure}
+
+\section*{3}
+\subsection*{(a)}
+拿掉所有跟鎖有關的兩個原始交易如表 \ref{tab:2_a} 所示。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|}
+    \toprule
+    \textbf{T$_1$} & \textbf{T$_2$} \\
+    \midrule
+    read\_item(Y); & read\_item(X); \\
+    read\_item(X); & read\_item(Y); \\
+    X:= X + Y; & Y:= X + Y; \\
+    write\_item(X); & write\_item(Y); \\
+    \bottomrule
+    \end{tabular}
+    \caption{T$_1$ and T$_2$ transactions}
+    \label{tab:2_a}
+\end{table}
+
+\subsection*{(b)}
+當有兩個交易在同一個資料上 read 和 write 時，如果至少有一個交易在 write 則會衝突，衝突配對如表 \ref{tab:2_b} 所示。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|cc|}
+    \toprule
+    \textbf{T$_1$} & \textbf{T$_2$} \\
+    \midrule
+    read\_item(Y); & write\_item(Y); \\
+    \midrule
+    write\_item(X); & read\_item(X); \\
+    \bottomrule
+    \end{tabular}
+    \caption{T$_1$ and T$_2$ 的衝突作業配對}
+    \label{tab:2_b}
+\end{table}
+
+
+\subsection*{(c)}
+如果是 T$_1$ 先發生然後 T$_2$ 才發生的話可以排出下面的 Serial schedule，如表 \ref{tab:2_c} 所示。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|}
+    \toprule
+    \textbf{T$_1$} & \textbf{T$_2$} \\
+    \midrule
+    read\_item(Y); &  \\
+    read\_item(X); &  \\
+    X:= X + Y; &  \\
+    write\_item(X); &  \\
+     & read\_item(X); \\
+     & read\_item(Y); \\
+     & Y:= X + Y; \\
+     & write\_item(Y); \\
+    \bottomrule
+    \end{tabular}
+    \caption{Serial schedule of T$_1$ and T$_2$ transactions}
+    \label{tab:2_c}
+\end{table}
+
+\subsection*{(d)}
+等價的 non-serial schedule 的結果如表 \ref{tab:2_d} 所示，由於原來是 T$_1$ 先做，所以 T$_2$ 在讀 X 的時候會讀到已經被 T$_1$ 修改過的資料，當把它改成 non-serial schedule 時要讓 T$_2$ 在 T$_1$ 修改過並寫入新的 X 後再去讀 X 的資料，這樣就可以保持和 Serial schedule 一樣的效果。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|}
+    \toprule
+    \textbf{T$_1$} & \textbf{T$_2$} \\
+    \midrule
+    read\_item(Y); &  \\
+    read\_item(X); & \\
+     & read\_item(Y); \\
+    X:= X + Y; &  \\
+    write\_item(X); & \\
+     & read\_item(X); \\
+     & Y:= X + Y; \\
+     & write\_item(Y); \\
+    \bottomrule
+    \end{tabular}
+    \caption{Non-serial schedule of T$_1$ and T$_2$ transactions}
+    \label{tab:2_d}
+\end{table}
+
+
+\subsection*{(e)}
+不等價的 non-serial schedule 如表 \ref{tab:2_e} 所示，由於 T$_2$ 沒有在 T$_1$ 寫入新的 X 之後才讀 X，所以執行的結果就會不一樣。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|}
+    \toprule
+    \textbf{T$_1$} & \textbf{T$_2$} \\
+    \midrule
+    read\_item(Y); &  \\
+    & read\_item(X); \\
+    read\_item(X); &  \\
+    & read\_item(Y); \\
+    X:= X + Y; &  \\
+    & Y:= X + Y; \\
+    write\_item(X); &  \\
+    & write\_item(Y); \\
+    \bottomrule
+    \end{tabular}
+    \caption{Non-serial schedule of T$_1$ and T$_2$ transactions}
+    \label{tab:2_e}
+\end{table}
+
+\subsection*{(f)}
+幫兩段交易都加上兩階段鎖定的機制後如表 \ref{tab:2_f} 所示。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|}
+    \toprule
+    \textbf{T$_1$} & \textbf{T$_2$} \\
+    \midrule
+    read\_lock(Y); & read\_lock(X); \\
+    read\_item(Y); & read\_item(X); \\
+    read\_lock(X); & read\_lock(Y); \\
+    read\_item(X); & read\_item(Y); \\
+    upgrade\_lock(X); & upgrade\_lock(Y); \\
+    X:= X + Y; & Y:= X + Y; \\
+    write\_item(X); & write\_item(Y); \\
+    unlock(X); & unlock(Y); \\
+    unlock(Y); & unlock(X); \\
+    \bottomrule
+    \end{tabular}
+    \caption{T$_1$ and T$_2$ transactions after adding lock}
+    \label{tab:2_f}
+\end{table}
+
+\subsection*{(g)}
+下面的加上鎖的 non-serial schedule 如表 \ref{tab:2_g} 所示，因為都按照一樣的順序加上鎖，並在操作結束後立即釋放鎖，所以不會造成死鎖。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|}
+    \toprule
+    \textbf{T$_1$} & \textbf{T$_2$} \\
+    \midrule
+    read\_lock(Y); & \\
+    read\_item(Y); & \\
+    read\_lock(X); & \\
+    read\_item(X); & \\
+    & read\_lock(Y); \\
+    & read\_item(Y); \\
+    upgrade\_lock(X); & \\
+    X:= X + Y; &  \\
+    write\_item(X); & \\
+    unlock(Y); & \\
+    unlock(X); & \\
+    & read\_lock(X); \\
+    & read\_item(X); \\
+    & upgrade\_lock(Y); \\
+    & Y:= X + Y; \\
+    & write\_item(Y); \\
+    & unlock(Y); \\
+    & unlock(X); \\
+    \bottomrule
+    \end{tabular}
+    \caption{Non-serial schedule of T$_1$ and T$_2$ transactions with no deadlock} 
+    \label{tab:2_g}
+\end{table}
+
+\subsection*{(h)}
+會造成死鎖的 non-serial schedule 如表 \ref{tab:2_h} 所示，由於兩個交易申請鎖的順序不一樣，會造成 T$_1$ 在等 T$_2$ 釋放鎖，而 T$_2$ 也在等 T$_1$ 釋放鎖的情形，進而造成死鎖。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|}
+    \toprule
+    \textbf{T$_1$} & \textbf{T$_2$} \\
+    \midrule
+    read\_lock(X); & \\
+    read\_item(X); & \\
+    & read\_lock(Y); \\
+    & read\_item(Y); \\
+    read\_lock(Y); & \\
+    read\_item(Y); & \\
+    upgrade\_lock(X); & \\
+    X:= X + Y; &  \\
+    write\_item(X); & \\
+    unlock(Y); & \\
+    unlock(X); & \\
+    & read\_lock(X); \\
+    & read\_item(X); \\
+    & upgrade\_lock(Y); \\
+    & Y:= X + Y; \\
+    & write\_item(Y); \\
+    & unlock(Y); \\
+    & unlock(X); \\
+    \bottomrule
+    \end{tabular}
+    \caption{Non-serial schedule of T$_1$ and T$_2$ transactions with deadlock}
+    \label{tab:2_h}
+\end{table}
+
+
+
+\section*{4}
+\subsection*{(a)}
+\noindent 步驟一的查詢：
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+SELECT remaining_ticket_qty 
+FROM REMAINING_TICKET 
+WHERE travel_date = '2024-12-04' AND train_id = 123;
+\end{minted}
+步驟三的再次查詢：
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+SELECT remaining_ticket_qty 
+FROM REMAINING_TICKET 
+WHERE travel_date = '2024-12-04' AND train_id = 123 FOR UPDATE;
+\end{minted}
+步驟三的更新：
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+UPDATE REMAINING_TICKET 
+SET remaining_ticket_qty = remaining_ticket_qty - 1 
+WHERE travel_date = '2024-12-04' AND train_id = 123;
+\end{minted}
+步驟三的新增：
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+INSERT INTO PURCHASE (customer_id, travel_date, train_id, purchase_datetime) 
+VALUES ('customer_001', '2024-12-04', 123, CURRENT_TIMESTAMP);
+\end{minted}
+
+\subsection*{(b)}
+不需要防止 unrepeatable read，因為第一次查詢時有票但第二次查詢時發現沒有票的狀況是業務邏輯所允許的情況，所以不必防止。
+
+\subsection*{(c)}
+應該要在步驟三的再次查詢加上 FOR UPDATE，避免在後續要更新時別的交易把票搶走。
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+SELECT remaining_ticket_qty 
+FROM REMAINING_TICKET 
+WHERE travel_date = '2024-12-04' AND train_id = 123 FOR UPDATE;
+\end{minted}
+
+\subsection*{(d)}
+\noindent 步驟一的查詢：
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+SELECT remaining_ticket_qty 
+FROM REMAINING_TICKET 
+WHERE travel_date = '2024-12-04' AND train_id = 123 FOR UPDATE;
+\end{minted}
+步驟三的更新：
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+UPDATE REMAINING_TICKET 
+SET remaining_ticket_qty = remaining_ticket_qty - 1 
+WHERE travel_date = '2024-12-04' AND train_id = 123;
+\end{minted}
+步驟三的新增：
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+INSERT INTO PURCHASE (customer_id, travel_date, train_id, purchase_datetime) 
+VALUES ('customer_001', '2024-12-04', 123, CURRENT_TIMESTAMP);
+\end{minted}
+這次應該要改成在步驟一的查詢就加上 FOR UPDATE 防止在臨櫃消費者考慮要不要購票時票就被其他的交易搶走。
+
+
+
+\section*{5}
+關聯式資料庫在分散化上效益不彰，主要是因為他對強一致性和複雜查詢的支持需要大量跨 node 的查詢，而這與分散式系統的低延遲和高容錯性目標相衝突。相較之下，NoSQL 資料庫對一致性的要求較低，更適合分散式環境，因此能更好地應對分散式應用的需求。
+
+
+\section*{6}
+\subsection*{(a)}
+合理，因為資料的結構不固定，關聯式資料庫需要有固定格式的資料，而 NoSQL 則不用，另外資料量很大，NoSQL 支援分散式系統，在處理大量的資料時可以更有效率，相較起來關聯式資料庫就不適合分散式系統。因此選用 NoSQL 紀錄是合理的。
+
+\subsection*{(b)}
+建議按照時間分片，因為他要進行趨勢分析，照理來說會需要特定時間的資料，所以按照時間分片可以針對某段時間的數據查詢，還可將相關數據集中在同一分片，降低查詢範圍。
+
+\subsection*{(c)}
+對 TICKET 表做分片，按 \texttt{EVENT\_ID} 分片。因為搶票場景中，票券資料的查詢集中在特定的活動上。按活動分片可以讓特定活動的請求集中在少數節點上，減少跨節點操作的延遲。
+
+
+\section*{7}
+\subsection*{(a)}
+\noindent 好處：
+\begin{itemize}
+    \item 可以減少對營業用資料庫的干擾，在分析資料時不會操作營業用資料庫，營業用資料庫可以專注於高效處理日常交易操作。
+    \item 分析師只能訪問資料倉儲，避免誤更改到原始資料庫的內容。
+    \item 資料倉儲的數據會經過清洗與轉換，所以資料會有更高的一致性和可用性。
+\end{itemize}
+
+\noindent 壞處：
+\begin{itemize}
+    \item 與營業用資料庫的資料之間會有延遲，因為存資料需要時間。
+    \item 使用資料倉儲會需要額外的成本。
+    \item 營業用資料庫與資料倉儲之間需要定期同步，較麻煩。
+\end{itemize}
+
+\subsection*{(b)}
+使用關聯式資料庫，因為資料倉儲的數據大多是結構化的資料，並且需要大量的 join 與其他分析，資料倉儲的數據需保證一致性，例如 ACID，所以關聯式資料庫較為適合。
+
+\subsection*{(c)}
+\noindent 好處：
+\begin{itemize}
+    \item 在進行 SUM、AVG 的查詢時，只需要讀取相關的列，避免了讀取不必要的數據，提高查詢效率。
+    \item 同一列的數據類型通常會一致，壓縮效率比列式儲存更高。
+    \item 行式儲存會更適合 OLAP 查詢，因為這些查詢通常只涉及部分列。
+\end{itemize}
+\noindent 壞處：
+\begin{itemize}
+    \item 行式儲存需要把資料拆分並寫入多個列中，會導致寫入速度較慢。
+    \item 不適合 OLTP 工作，因為資料寫入速度較慢。
+\end{itemize}
+若想計算某年度每月銷售額的總和，只需要讀取銷售額和日期列，如果是列式儲存則需要讀取整行資料，增加不必要的 I/O。
+
+\end{document}

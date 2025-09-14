@@ -1,0 +1,572 @@
+\documentclass{article}
+
+\usepackage{graphicx}
+\usepackage[left=2.5cm, right=2.5cm, top=2cm, bottom=2cm]{geometry}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{changepage}
+\usepackage{svg}
+\usepackage{float} % 提供更灵活的图片位置控制
+\usepackage{booktabs}
+\usepackage{minted}
+\pagestyle{fancy}
+\fancyhf{} % 清空页眉和页脚
+\fancyfoot[C]{\thepage} % 只在页脚中居中显示页码
+\renewcommand{\headrulewidth}{0pt} % 去掉页眉的横线
+\usetikzlibrary{trees, shapes.geometric, arrows, positioning}
+\usepackage{lmodern}
+\usepackage[UTF8]{ctex}
+\usepackage{xeCJK}
+    \setCJKmainfont[AutoFakeBold=3]{TW-Sung}
+    \XeTeXlinebreaklocale "zh"
+    \XeTeXlinebreakskip = 0pt plus 1pt
+\usepackage{multirow}
+\ctexset{
+    figurename = {Figure},
+    tablename = {Table}
+}
+\definecolor{bg}{rgb}{0.95,0.95,0.92} % 定義一個自定義顏色
+\definecolor{lightgray}{gray}{0.9} % 設定一個淺灰色
+
+\titleformat{\section}[hang]{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}[hang]{\normalfont\bfseries}{\thesubsection}{2em}{}
+\titleformat{\subsubsection}[hang]{\normalfont\bfseries}{\thesubsubsection}{5em}{}
+
+\titlespacing*{\subsection}{2em}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+\titlespacing*{\subsubsection}{3em}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+% 定義 SQL 的語法高亮
+\lstdefinelanguage{SQL}{
+    keywords={SELECT, FROM, WHERE, INSERT, UPDATE, DELETE},
+    keywordstyle=\color{blue},
+    commentstyle=\color{brown},
+    stringstyle=\color{red}
+}
+
+% 定義 Python 的語法高亮
+\lstdefinelanguage{Python}{
+    keywords={def, return, if, else, import, print},
+    keywordstyle=\color{green},
+    commentstyle=\color{gray},
+    stringstyle=\color{orange}
+}
+
+% 全局設置
+\lstset{
+    language=SQL,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{brown},
+    stringstyle=\color{red},
+    showstringspaces=false,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{white},
+    frame=single,
+    rulecolor=\color{black},
+    captionpos=b,
+    inputencoding=utf8,
+    extendedchars=true
+}
+% 調整背景顏色的邊距
+\setlength{\fboxsep}{0pt}  % 調整框框的邊距，使背景顏色的寬度與代碼完全匹配
+\renewcommand{\abstractname}{\bf 摘要}
+\renewcommand{\tablename}{表}
+\renewcommand{\figurename}{圖}
+\renewcommand{\refname}{\bf 參考文獻}
+
+
+
+\title{Database Management\\Homework 4}
+\author{B11705044 \\ Yen-Hung, Chiang}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section*{1}
+\subsection*{(a)}
+這句指令從 \texttt{Reserved\_Ticket} 這個表中查詢日期大於等於 2023-08-02 的 \texttt{Travel\_Date} 以及計算每個 \texttt{Travel\_Date} 對應的票數，查詢條件是 \texttt{Depart\_Station\_ID} $\leq$ 1030 及 \texttt{Arrive\_Station\_ID} = 1035。
+
+\subsection*{(b)}
+圖 \ref{fig:1-2} 是在沒有任何 index 的情況下執行的 query plan，可以看到 RDBMS 產出的 estimated total cost 為 55518.53。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.4]{1-2.png}
+    \caption{Query plan}
+    \label{fig:1-2}
+\end{figure}
+
+
+\subsection*{(c)}
+篩選 \texttt{Travel\_Date} $\geq$ '2023-08-02' 在第 10 行發生，代表 RDBMS 在最一開始就先篩選條件。RDBMS 在最一開始就篩選可以讓他之後再做其他運算的時候處理較少的資料，所以在這個階段篩選合理。
+
+\subsection*{(d)}
+以下的 sql 程式碼為建立三個 index 的語法。以下分別幫 \texttt{Depart\_Station\_ID} 、\texttt{Arrive\_Station\_ID}、\texttt{Travel\_Date} 建立 index，圖 \ref{fig:1-3-1_Depart_Station_ID}、圖 \ref{fig:1-3-2_Arrive_Station_ID}、圖 \ref{fig:1-3-3_Travel_Date}  分別為在只建立該 index 的情況所產出的 query plan。
+
+
+\begin{minted}[bgcolor=lightgray, linenos]{SQL}
+CREATE INDEX IF NOT EXISTS idx_depart_station_id ON Reserved_Ticket(Depart_Station_ID);
+CREATE INDEX IF NOT EXISTS idx_arrive_station_id ON Reserved_Ticket(Arrive_Station_ID);
+CREATE INDEX IF NOT EXISTS idx_travel_date ON Reserved_Ticket(Travel_Date);
+\end{minted}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.4]{1-3-1_Depart_Station_ID.png}
+    \caption{Query plan for index on \texttt{Depart\_Station\_ID}}
+    \label{fig:1-3-1_Depart_Station_ID}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.4]{1-3-2_Arrive_Station_ID.png}
+    \caption{Query plan for index on \texttt{Arrive\_Station\_ID}}
+    \label{fig:1-3-2_Arrive_Station_ID}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.4]{1-3-3_Travel_Date.png}
+    \caption{Query plan for index on \texttt{Travel\_Date}}
+    \label{fig:1-3-3_Travel_Date}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{cc}
+        \toprule
+        \textbf{Index On} & \textbf{Total Cost} \\
+        \midrule
+        \texttt{Depart\_Station\_ID} & 55518.53 \\
+        \texttt{Arrive\_Station\_ID} & 35597.96 \\
+        \texttt{Travel\_Date} & 55518.53 \\
+        \bottomrule
+    \end{tabular}
+    \caption{Comparison of Total Cost on Different Indexes}
+    \label{tab:index-comparison}
+\end{table}
+
+表 \ref{tab:index-comparison} 統整了使用不同的 index 所得到的 estimated total cost 差異，我們可以看到使用 \texttt{Arrive\_Station\_ID} 建立 index 所產出的 estimated total cost 是最小的，另外兩者則是差不多。回到上面的三張圖可以看到只有建立 \texttt{Arrive\_Station\_ID} 當 index 的時候 RDBMS 會使用 index，其他兩者不會，猜測是因爲另外兩者建立的 index 查詢速度沒有比原來的快，所以 RDBMS 沒有採用 index。
+
+
+\subsection*{(e)}
+以下的 sql 程式碼為建立兩個 multi-column index 的語句，圖 \ref{fig:1-4-1_idx_depart_arrive_station} 是對 (\texttt{Depart\_Station\_ID}, \texttt{Arrive\_Station\_ID}) 建立 index 之後產生的 query plan，圖 \ref{fig:1-4-2_idx_arrive_depart_station} 是對 (\texttt{Arrive\_Station\_ID}, \texttt{Depart\_Station\_ID}) 建立 index 產生的 query plan。
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+CREATE INDEX IF NOT EXISTS idx_depart_arrive_station ON Reserved_Ticket (Depart_Station_ID, Arrive_Station_ID);
+CREATE INDEX IF NOT EXISTS idx_arrive_depart_station ON Reserved_Ticket (Arrive_Station_ID, Depart_Station_ID);
+\end{minted}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.4]{1-4-1_idx_depart_arrive_station.png}
+    \caption{Query plan for index on (\texttt{Depart\_Station\_ID}, \texttt{Arrive\_Station\_ID})}
+    \label{fig:1-4-1_idx_depart_arrive_station}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.4]{1-4-2_idx_arrive_depart_station.png}
+    \caption{Query plan for index on (\texttt{Arrive\_Station\_ID}, \texttt{Depart\_Station\_ID})}
+    \label{fig:1-4-2_idx_arrive_depart_station}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{cc}
+        \toprule
+        \textbf{Index On} & \textbf{Total Cost} \\
+        \midrule
+        (\texttt{Depart\_Station\_ID}, \texttt{Arrive\_Station\_ID}) & 55518.53 \\
+        (\texttt{Arrive\_Station\_ID}, \texttt{Depart\_Station\_ID}) & 36443.87 \\
+        \bottomrule
+    \end{tabular}
+    \caption{Comparison of Total Cost on Two Different Indexes}
+    \label{tab:index-comparison}
+\end{table}
+根據圖 \ref{fig:1-4-1_idx_depart_arrive_station} 和圖 \ref{fig:1-4-2_idx_arrive_depart_station} 的 query plan，可以把 estimated total cost 整理成表 \ref{tab:index-comparison}，可以明顯地看到 \texttt{Arrive\_Station\_ID} 在前面的 cost 比較小，而回去看 query plan 也會發現 \texttt{Arrive\_Station\_ID} 在前面的 index 因為 cost 比較小所以會被 RDBMS 使用，而另外一個 index 則不會被使用。
+
+\subsection*{(f)}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ccc}
+        \toprule
+        \textbf{Index On} & \textbf{Total Cost} & \textbf{Execution Time} \\
+        \midrule
+        None & 55518.53 & 146ms\\
+        \texttt{Depart\_Station\_ID} & 55518.53 & 104ms \\
+        \texttt{Arrive\_Station\_ID} & 35597.96 & 120ms \\
+        \texttt{Travel\_Date} & 55518.53 & 131ms\\
+        (\texttt{Depart\_Station\_ID}, \texttt{Arrive\_Station\_ID}) & 55518.53 & 132ms \\
+        (\texttt{Arrive\_Station\_ID}, \texttt{Depart\_Station\_ID}) & 36443.87 & 100ms \\
+        \bottomrule
+    \end{tabular}
+    \caption{Comparison of Different Indexes}
+    \label{tab:1_6_index-comparison}
+\end{table}
+比較六種執行該 SQL 指令的方法並且把結果整理成表 \ref{tab:1_6_index-comparison}，觀察到除了 \texttt{Arrive\_Station\_ID} 和 (\texttt{Arrive\_Station\_ID}, \texttt{Depart\_Station\_ID}) 這兩種建立 index 的方式，其他的 cost 都和沒有建立 index 時一樣大，推測是因為這種 index 方式並不會幫助增進查詢的效率。另外觀察到 estimated total cost 比較小的 index 方式在實際執行時並沒有比起其他方式有明顯的差異，有可能是因為資料量不夠大讓執行時間差異不容易觀察到。
+
+
+
+
+\section*{2}
+\subsection*{(a)}
+圖 \ref{fig:2_a} 是把數列的值由左至右依序插入畫出的 B+ tree。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{btree_after_930.png}
+    \caption{B+ tree}
+    \label{fig:2_a}
+\end{figure}
+
+\subsection*{(b)}
+圖 \ref{fig:2_b_1} 以及圖 \ref{fig:2_b_2} 分別是插入 360 前以及插入 360 後的 B+ tree。可以觀察到在插入 360 之後由於左邊第二個 leaf node 裡面會有四個值，所以把 360 copy up 到上面的 inner node，接著 inner node 也會有四個值，所以再把 400 push up 到更上面的 inner node，最後就形成如圖 \ref{fig:2_b_2} 的 B+ tree。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{btree_before_360.png}
+    \caption{B+ tree before insert 360}
+    \label{fig:2_b_1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{btree_after_360.png}
+    \caption{B+ tree after insert 360}
+    \label{fig:2_b_2}
+\end{figure}
+
+\subsection*{(c)}
+圖 \ref{fig:2_c_1} 以及圖 \ref{fig:2_c_2} 分別是插入 930 前以及插入 930 後的 B+ tree。在插入 930 的時候會先插入到 900 所在的 leaf node，接著裡面超過 key 所以把 930 copy up 到上面的 inner node，再來 inner node 裡面的 key 數量也會有四個，所以把 930 push up 到最上面的 inner node，就形成了如圖 \ref{fig:2_c_2} 的 B+ tree。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{btree_before_930.png}
+    \caption{B+ tree before insert 930}
+    \label{fig:2_c_1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{btree_after_930.png}
+    \caption{B+ tree after insert 930}
+    \label{fig:2_c_2}
+\end{figure}
+
+\subsection*{(d)}
+把所有值排序之後用 bottom up 方式建構的 B+ tree 如圖 \ref{fig:2_d} 所示。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_4.png}
+    \caption{B+ tree bottom up}
+    \label{fig:2_d}
+\end{figure}
+
+\subsection*{(e)}
+使用兩種方式建構的 B+ tree 應該會長得一樣，因為用 top-down 的方式建立的 tree（圖 \ref{fig:2_e}） 在 leaf node 裡面的值變成四個的時候會分裂成兩個兩個並且 copy up 中間的值上去 inner node，而在 inner node 裡面的值達到四個的時候會把中間的值 push up 上去，所以最後會形成一樣的圖形。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_e.png}
+    \caption{B+ tree top-down (sorted)}
+    \label{fig:2_e}
+\end{figure}
+
+
+\section*{3}
+我想要查詢 \texttt{citizen\_id} 是 \texttt{'AAAAA0000'} 購買的 \texttt{reserved\_ticket} 和 \texttt{non\_reserved\_ticket} 的數量，以下是執行這個查詢的 SQL 程式碼。這個程式碼會 join \texttt{reserved\_ticket} 和 \texttt{non\_reserved\_ticket} 這兩張表並且計算這兩個表的 ticket 數量。
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+SELECT 
+    nr.citizen_id,
+    COUNT(nr.ticket_id) AS non_reserved_ticket_count,
+    COUNT(rt.ticket_id) AS reserved_ticket_count
+FROM non_reserved_ticket nr
+LEFT JOIN reserved_ticket rt ON nr.citizen_id = rt.citizen_id
+GROUP BY nr.citizen_id
+HAVING nr.citizen_id = 'AAAAA0000';
+\end{minted}
+下面兩句 SQL 程式碼是建立 index 的語句，分別對兩個資料表的 \texttt{citizen\_id} 建構 index。
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{SQL}
+CREATE INDEX idx_nr_citizen_id ON non_reserved_ticket (citizen_id);
+CREATE INDEX idx_rt_citizen_id ON reserved_ticket (citizen_id);
+\end{minted}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.4]{3_query_before_index.png}
+    \caption{Query plan before using index}
+    \label{fig:3_before}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.4]{3_query_after_index.png}
+    \caption{Query plan after using index}
+    \label{fig:3_after}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ccc}
+        \toprule
+        \textbf{Using Index} & \textbf{Total Cost} & \textbf{Execution Time} \\
+        \midrule
+        No & 65938.15 & 210ms\\
+        Yes & 57.63 & 65ms \\
+        \bottomrule
+    \end{tabular}
+    \caption{Comparison of Using Indexes or not}
+    \label{tab:3}
+\end{table}
+圖 \ref{fig:3_before} 和圖 \ref{fig:3_after} 分別是使用 index 前和後的 query plan，接著去執行這段查詢並記錄實際的執行時間，把結果簡單整理成表 \ref{tab:3}。可以觀察到使用 index 可以有效的減少 estimated total cost 並且實際執行時間也少了許多。
+
+
+\section*{4}
+\subsection*{(a)}
+表 \ref{tab:4_a} 是三種方式所需要的 I/O 次數以及所需的時間。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ccc}
+    \toprule
+    \textbf{Algorithm} & \textbf{cost} & \textbf{Total time} \\
+    \midrule
+    Stupid & $M+mN = 20000005000$ I/Os & 556 hours \\
+    Single-block & $M+MN = 200005000$ I/Os & 5.6 hours \\
+    Multi-block & $M+ \lceil \frac{M}{B-2}\rceil N = 2085000$ I/Os & 208.5 seconds \\
+    \bottomrule
+    \end{tabular}
+    \caption{Comparison of different algorithm}
+    \label{tab:4_a}
+\end{table}
+
+\subsection*{(b)}
+Stupid Nested Loop Join 的方法每一個 tuple 都要去對另一個表的 page 做一次 I/O，所以要做很多次 I/O，而 Single-block 則是每個 page 和另一個表的 page 做 I/O，所以會花費較少時間，Multi-block 跟 Single-block 比起來會同時用很多 buffer，所以時間會更近一步減少。
+
+\section*{5}
+\subsection*{(a)}
+這句 SQL 是用來查詢每個員工的 \texttt{fname} 和 \texttt{lname}、他們所屬部門的編號及名稱以及該部門的位置。回傳的結果會顯示員工姓名、部門編號、部門名稱和部門的位置。
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.5]{5_1.png}
+    \caption{Result of query}
+    \label{fig:5_a}
+\end{figure}
+
+\subsection*{(b)}
+畫出來的樹狀圖如如 \ref{fig:5_b} 所示。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{5_b.png}
+    \caption{樹狀圖}
+    \label{fig:5_b}
+\end{figure}
+
+\subsection*{(c)}
+RDBMS 執行的 query plan 如圖 \ref{fig:5_c} 所示，根據 query plan 可以看到 RDBMS 執行 join 的方式是第 2 種。RDBMS 會這樣建構的原因是因為 \texttt{DEPT\_LOCATIONS} 和 \texttt{DEPARTMENT} 的資料表比較小，小的表會優先構建 Hash Table，這樣可以過濾掉更多資料，讓查詢更快。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{5_c.png}
+    \caption{Query plan}
+    \label{fig:5_c}
+\end{figure}
+
+
+\subsection*{(d)}
+執行的 query plan 結果和前一小題的一樣，一樣的原因是 SQL 是 declarative 的語言，RDBMS 會選擇如何執行。
+
+\section*{6}
+\subsection*{(a)}
+以下為使用 Python 實作的 hash join 演算法，表 \ref{tab:6_a_bucket_counts} 則表示在餘數為 60、70 和 80 的 bucket 裡，各有幾筆 \texttt{RESERVED\_TICKET} 資料。
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{Python}
+import psycopg2
+import pandas as pd
+import time
+
+host = "localhost"
+dbname = "THSR_database"
+user = "postgres"
+password = "1234"
+
+conn = psycopg2.connect(
+    host=host,
+    dbname=dbname,
+    user=user,
+    password=password
+)
+
+cur = conn.cursor()
+
+# Step 1
+cur.execute("""
+    SELECT arrive_station_id, citizen_id
+    FROM reserved_ticket
+    WHERE travel_date = '2023-08-01' AND depart_station_id <= 1000
+""")
+reserved_ticket_rows = cur.fetchall()
+
+reserved_ticket_df = pd.DataFrame(reserved_ticket_rows, columns=["arrive_station_id", "citizen_id"])
+print(f"Reserved Ticket records: {len(reserved_ticket_df)}")
+
+# Step 2：Hash function
+def hash_function(citizen_id):
+    return sum(ord(c) for c in citizen_id) % 100
+
+buckets = {i: [] for i in range(100)}
+
+# Put reserved_ticket data into buckets based on the hash function
+for index, row in reserved_ticket_df.iterrows():
+    citizen_id = row["citizen_id"]
+    bucket_index = hash_function(citizen_id)
+    buckets[bucket_index].append({"arrive_station_id": row["arrive_station_id"], "citizen_id": citizen_id, "name": None})
+
+
+# Step 3
+cur.execute("""
+    SELECT citizen_id, name
+    FROM member
+    WHERE name LIKE '% A%'
+""")
+member_rows = cur.fetchall()
+
+member_df = pd.DataFrame(member_rows, columns=["citizen_id", "name"])
+print(f"Member records: {len(member_df)}")
+
+# Step 4: Hash and join member data
+start_hash_join = time.time()
+for index, row in member_df.iterrows():
+    citizen_id = row["citizen_id"]
+    name = row["name"]
+    bucket_index = hash_function(citizen_id)
+
+    # Search for matching reserved_ticket data
+    for reserved_ticket in buckets[bucket_index]:
+        if reserved_ticket["citizen_id"] == citizen_id:
+            reserved_ticket["name"] = name  # Fill the name column
+end_hash_join = time.time()
+
+# Step 5
+result = []
+for bucket in buckets.values():
+    for reserved_ticket in bucket:
+        if reserved_ticket["name"] is not None:  # Only output records with a filled name
+            result.append((reserved_ticket["arrive_station_id"], reserved_ticket["name"]))
+
+result_df = pd.DataFrame(result, columns=["arrive_station_id", "name"])
+
+print(f"Hash join execution time: {end_hash_join - start_hash_join:.6f} seconds")
+print(result_df)
+
+cur.close()
+conn.close()
+\end{minted}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{cc}
+    \toprule
+    \textbf{Bucket} & \textbf{Record Count} \\
+    \midrule
+    60 & 291 \\
+    70 & 27 \\
+    80 & 0 \\
+    \bottomrule
+    \end{tabular}
+    \caption{Record counts in buckets}
+    \label{tab:6_a_bucket_counts}
+\end{table}
+
+
+\subsection*{(b)}
+下面為使用暴力 join 演算法的 Python 程式碼。
+\begin{minted}[bgcolor=lightgray, linenos, breaklines=true]{Python}
+import psycopg2
+import pandas as pd
+import time
+
+host = "localhost"
+dbname = "THSR_database"
+user = "postgres"
+password = "1234"
+
+conn = psycopg2.connect(
+    host=host,
+    dbname=dbname,
+    user=user,
+    password=password
+)
+
+cur = conn.cursor()
+
+# Step 1
+cur.execute("""
+    SELECT arrive_station_id, citizen_id
+    FROM reserved_ticket
+    WHERE travel_date = '2023-08-01' AND depart_station_id <= 1000
+""")
+reserved_ticket_rows = cur.fetchall()
+
+reserved_ticket_df = pd.DataFrame(reserved_ticket_rows, columns=["arrive_station_id", "citizen_id"])
+
+# Step 3
+cur.execute("""
+    SELECT citizen_id, name
+    FROM member
+    WHERE name LIKE '% A%'
+""")
+member_rows = cur.fetchall()
+
+member_df = pd.DataFrame(member_rows, columns=["citizen_id", "name"])
+
+# Step 4: Brute-force join using nested loops
+result = []
+
+reserved_ticket_array = reserved_ticket_df.to_numpy()
+member_array = member_df.to_numpy()
+
+# Nested loops to perform the join
+start_time = time.time()
+for member in member_array:
+    matches = reserved_ticket_array[:, 1] == member[0]  # Compare citizen_id
+    for idx, match in enumerate(matches):
+        if match:
+            result.append((reserved_ticket_array[idx, 0], member[1]))  # arrive_station_id, name
+
+brute_force_time = time.time() - start_time
+
+# Step 5
+result_df = pd.DataFrame(result, columns=["arrive_station_id", "name"])
+
+print(f"Brute-force join execution time: {brute_force_time:.6f} seconds")
+print(result_df)
+
+cur.close()
+conn.close()
+\end{minted}
+
+\subsection*{(c)}
+表 \ref{tab:6_c} 為兩種演算法在實際執行 join 時所需要花費的時間，可以看到暴力 join 的執行時間比 hash 多很多，因為 join 要跑雙層回圈，複雜度是 $\mathcal{O}(n \times m)$，在資料量很龐大的時候暴力算法就要算很久。而 hash join 相較於暴力 join 的缺點是要花費更多的儲存空間。
+\begin{table}[H]
+    \centering
+    \begin{tabular}{cc}
+    \toprule
+    \textbf{Algorithm} & \textbf{Execution time} \\
+    \midrule
+    Hash join & 0.568619 seconds \\
+    Brute-force & 15.090085 seconds \\
+    \bottomrule
+    \end{tabular}
+    \caption{Comparison of different algorithm}
+    \label{tab:6_c}
+\end{table}
+
+
+\end{document}
